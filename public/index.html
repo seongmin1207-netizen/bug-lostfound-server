@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B.U.G 분실물 보관소</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: 보관표(claim ticket) 컨셉. 왼쪽은 등록 폼(데스크톱에서 고정), 오른쪽은 티켓 모양 카드 목록. 폰에서는 폼이 접히는 한 칸 구조. */
+:root{
+  --bg:#EDF0F7; --surface:#FFFFFF; --ink:#141A33; --muted:#5B6382; --line:#D3D9EA;
+  --accent:#2F4BFF; --accent-ink:#FFFFFF;
+  --lost:#C9302F; --lost-bg:#FDECEB; --found:#0A7F58; --found-bg:#E1F4EC;
+  --done:#7B829E; --done-bg:#EEF0F6;
+  --f-display:'Do Hyeon','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-body:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1224; --surface:#171D38; --ink:#EEF0FA; --muted:#A2AACB; --line:#2B3466;
+  --accent:#8796FF; --accent-ink:#0E1224;
+  --lost:#FF8A8A; --lost-bg:#3A1C2C; --found:#43D9A3; --found-bg:#12342C;
+  --done:#8189AB; --done-bg:#1F2547; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1224; --surface:#171D38; --ink:#EEF0FA; --muted:#A2AACB; --line:#2B3466;
+  --accent:#8796FF; --accent-ink:#0E1224;
+  --lost:#FF8A8A; --lost-bg:#3A1C2C; --found:#43D9A3; --found-bg:#12342C;
+  --done:#8189AB; --done-bg:#1F2547; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-bottom:16px;border-bottom:2px solid var(--ink)}
+.kicker{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(34px,7vw,52px);line-height:1.05;margin:2px 0 0;text-wrap:balance}
+.sub{margin:6px 0 0;color:var(--muted)}
+.tally{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:14px;color:var(--muted)}
+.tally b{font-family:var(--f-mono);font-size:20px;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.tally span{white-space:nowrap}
+.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--done);display:inline-block}
+.sync.live i{background:var(--found)}
+
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}.tally{align-items:flex-start;flex-direction:row;flex-wrap:wrap;gap:4px 14px}}
+
+/* compose */
+.compose{background:var(--surface);border:1px solid var(--line);border-radius:12px;position:sticky;top:12px}
+@media (max-width:860px){.compose{position:static}}
+.compose>summary{list-style:none;cursor:pointer;padding:14px 16px;font-family:var(--f-display);font-size:20px;display:flex;justify-content:space-between;align-items:center}
+.compose>summary::-webkit-details-marker{display:none}
+.compose>summary::after{content:"＋";font-family:var(--f-body);font-size:20px;color:var(--accent)}
+.compose[open]>summary::after{content:"−"}
+.compose[open]>summary{border-bottom:1px solid var(--line)}
+form{display:flex;flex-direction:column;gap:14px;padding:16px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field>label,.lbl{font-size:13px;font-weight:500;color:var(--muted)}
+input[type=text],input[type=time],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 11px;min-height:42px}
+textarea{resize:vertical;min-height:72px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg label{position:relative}
+.seg input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.seg span{display:block;text-align:center;padding:11px 8px;border:2px solid var(--line);border-radius:10px;font-family:var(--f-display);font-size:18px;background:var(--bg)}
+.seg input:checked+span.l{border-color:var(--lost);background:var(--lost-bg);color:var(--lost)}
+.seg input:checked+span.f{border-color:var(--found);background:var(--found-bg);color:var(--found)}
+.seg input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
+.photo{display:flex;align-items:center;gap:10px}
+.photo img{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.btn{border:0;border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;background:var(--accent);color:var(--accent-ink);min-height:44px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.btn.sm{padding:6px 12px;min-height:34px;font-size:13px;border-radius:8px}
+.err{color:var(--lost);font-size:13px;min-height:1em;margin:0}
+
+/* filters */
+.bar{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-size:14px;min-height:36px}
+.tabs button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tabs em{font-style:normal;font-family:var(--f-mono);font-size:12px;opacity:.7;margin-left:4px}
+.find{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,190px);gap:8px}
+@media (max-width:480px){.find{grid-template-columns:minmax(0,1fr)}}
+
+/* ticket cards */
+.list{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.ticket{display:grid;grid-template-columns:78px minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stub{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:12px 6px;border-right:2px dashed var(--line)}
+.stub .tag{font-family:var(--f-display);font-size:20px;line-height:1}
+.stub .no{font-family:var(--f-mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ticket.lost .stub{background:var(--lost-bg);color:var(--lost)}
+.ticket.found .stub{background:var(--found-bg);color:var(--found)}
+.ticket.done .stub{background:var(--done-bg);color:var(--done)}
+.ticket.done .body{opacity:.62}
+.ticket.done h3{text-decoration:line-through}
+.body{padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;min-width:0}
+.body .main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.body h3{margin:0;font-size:17px;line-height:1.3;overflow-wrap:anywhere}
+.meta{font-size:13px;color:var(--muted)}
+.desc{margin:2px 0 0;overflow-wrap:anywhere}
+.contact{font-size:13px;margin:2px 0 0;overflow-wrap:anywhere}
+.contact b{font-weight:500;color:var(--muted)}
+.thumb{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.match{grid-column:1/-1;margin-top:6px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.match button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:2px 10px;cursor:pointer;font-size:12.5px}
+.acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.empty{border:2px dashed var(--line);border-radius:12px;padding:32px 20px;text-align:center;color:var(--muted)}
+.empty strong{display:block;font-family:var(--f-display);font-weight:400;font-size:22px;color:var(--ink);margin-bottom:4px}
+.tip{font-size:13px;color:var(--muted);border-left:3px solid var(--accent);padding-left:12px;margin:0}
+.linkbtn{border:0;background:none;padding:6px 0;color:var(--muted);font-size:13px;text-decoration:underline;cursor:pointer}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100vw - 32px);z-index:20}
+@media (prefers-reduced-motion:no-preference){.ticket{animation:in .25s ease-out}@keyframes in{from{opacity:0;transform:translateY(6px)}}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker">성사고 · B.U.G · Lost &amp; Found</div>
+      <h1>분실물 보관소</h1>
+      <p class="sub">축제 중에 잃어버렸거나 주운 물건을 여기에 올려 주세요.</p>
+    </div>
+    <div class="tally" aria-live="polite">
+      <span><b id="nLost">0</b> 찾는 중</span>
+      <span><b id="nFound">0</b> 보관 중</span>
+      <span><b id="nDone">0</b> 주인 찾음</span>
+      <span class="sync" id="sync"><i></i><span id="syncTxt">연결 중…</span></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <details class="compose" id="compose" open>
+      <summary>분실물 등록하기</summary>
+      <form id="f" novalidate>
+        <div class="seg" role="radiogroup" aria-label="종류">
+          <label><input type="radio" name="type" value="lost" checked><span class="l">잃어버렸어요</span></label>
+          <label><input type="radio" name="type" value="found"><span class="f">주웠어요</span></label>
+        </div>
+        <div class="field">
+          <label for="name" id="nameLbl">잃어버린 물건</label>
+          <input type="text" id="name" maxlength="40" placeholder="예: 검정색 카드지갑">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="cat">분류</label>
+            <select id="cat"></select>
+          </div>
+          <div class="field">
+            <label for="when" id="whenLbl">언제쯤 잃어버렸나요</label>
+            <input type="time" id="when">
+          </div>
+        </div>
+        <div class="field">
+          <label for="place">장소</label>
+          <select id="place"></select>
+        </div>
+        <div class="field">
+          <label for="desc">생김새 · 특징</label>
+          <textarea id="desc" maxlength="200" placeholder="색, 크기, 붙어 있는 스티커나 이름표 등"></textarea>
+        </div>
+        <div class="field">
+          <label for="contact" id="contactLbl">연락받을 곳</label>
+          <input type="text" id="contact" maxlength="60" placeholder="예: 2학년 3반 김철수">
+          <p class="hint">전화번호는 적지 않아도 돼요. 학년·반·이름만 적으면 B.U.G 부스에서 전달해 줘요.</p>
+        </div>
+        <div class="field">
+          <span class="lbl">사진 (선택)</span>
+          <div class="photo">
+            <img id="pv" alt="" hidden>
+            <input type="file" id="photo" accept="image/*">
+          </div>
+        </div>
+        <p class="err" id="err" role="alert"></p>
+        <button class="btn" type="submit">등록하기</button>
+      </form>
+    </details>
+
+    <section aria-label="등록된 분실물">
+      <div class="bar">
+        <div class="tabs" id="tabs"></div>
+        <div class="find">
+          <input type="text" id="q" placeholder="물건 이름이나 특징으로 검색" aria-label="검색">
+          <select id="placeF" aria-label="장소로 걸러 보기"></select>
+        </div>
+      </div>
+      <ul class="list" id="list"></ul>
+      <p class="tip" style="margin-top:16px">주인을 찾았거나 물건을 돌려받았다면 <b>찾았어요</b>를 눌러 주세요. 목록에서 정리돼요.</p>
+      <p style="margin:14px 0 0"><button type="button" class="linkbtn" id="adm">관리자</button></p>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+var PLACES=['인형뽑기 부스','사주·타로 부스','풍선다트 부스','온라인 게임존','카지노존','운동장·무대','복도·교실','기타'];
+var CATS=['지갑·카드','휴대폰·이어폰','옷·가방','열쇠·학생증','인형·경품','기타'];
+var items=[],admin=false,mode='pending',sig='';
+var view='all',q='',placeF='',type='lost',photoData='',confirmId=null,confirmTimer=null;
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function toast(t){var el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){el.hidden=true},2800)}
+function nowHM(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+function tokens(s){return String(s||'').toLowerCase().split(/[^0-9a-z가-힣]+/).filter(function(t){return t.length>=2})}
+function related(a,b){
+  if(a.type===b.type||a.done||b.done||a.cat!==b.cat)return false;
+  if(a.place===b.place)return true;
+  var ta=tokens(a.name+' '+a.desc),tb=tokens(b.name+' '+b.desc);
+  return ta.some(function(t){return tb.indexOf(t)>-1});
+}
+function setMode(m){
+  mode=m;
+  var t={pending:'연결 중…',live:'실시간 공유 중',off:'서버에 연결할 수 없어요'}[m];
+  $('syncTxt').textContent=t;$('sync').className='sync'+(m==='live'?' live':'');
+}
+function getPin(){try{return sessionStorage.getItem('bug-pin')||''}catch(e){return ''}}
+function setPin(v){try{if(v)sessionStorage.setItem('bug-pin',v);else sessionStorage.removeItem('bug-pin')}catch(e){}}
+function hdrs(){var h={'Content-Type':'application/json'},p=getPin();if(p)h['x-admin-pin']=p;return h}
+function api(method,url,data){
+  return fetch(url,{method:method,headers:hdrs(),body:data?JSON.stringify(data):undefined})
+    .then(function(r){return r.ok?r.json():Promise.reject(r.status)});
+}
+function pull(){
+  return fetch('/api/items',{cache:'no-store',headers:hdrs()}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
+    setMode('live');
+    var s=JSON.stringify(j);
+    if(s!==sig){sig=s;items=j.items;admin=!!j.admin;$('adm').textContent=admin?'관리자 모드 끄기':'관리자';render()}
+  }).catch(function(){setMode('off')});
+}
+
+function render(){
+  var asc=items.slice().sort(function(a,b){return a.created-b.created}),rank={};
+  asc.forEach(function(it,i){rank[it.id]=i+1});
+  var cLost=0,cFound=0,cDone=0;
+  items.forEach(function(it){if(it.done)cDone++;else if(it.type==='lost')cLost++;else cFound++});
+  $('nLost').textContent=cLost;$('nFound').textContent=cFound;$('nDone').textContent=cDone;
+  var tabs=[['all','전체',cLost+cFound],['lost','잃어버렸어요',cLost],['found','주웠어요',cFound],['done','주인 찾음',cDone]];
+  $('tabs').innerHTML=tabs.map(function(t){return '<button type="button" data-view="'+t[0]+'" aria-pressed="'+(view===t[0])+'">'+t[1]+'<em>'+t[2]+'</em></button>'}).join('');
+  var qq=q.trim().toLowerCase();
+  var shown=items.filter(function(it){
+    if(view==='done'){if(!it.done)return false}
+    else{if(it.done)return false;if(view!=='all'&&it.type!==view)return false}
+    if(placeF&&it.place!==placeF)return false;
+    if(qq&&(it.name+' '+it.desc+' '+it.cat+' '+it.place).toLowerCase().indexOf(qq)<0)return false;
+    return true;
+  });
+  if(!shown.length){
+    var msg=items.length?'조건에 맞는 글이 없어요':'아직 등록된 글이 없어요';
+    var sub=items.length?'검색어나 장소 필터를 바꿔 보세요.':'물건을 잃어버렸거나 주웠다면 등록 폼에서 올려 주세요.';
+    $('list').innerHTML='<li class="empty"><strong>'+msg+'</strong>'+sub+'</li>';
+    return;
+  }
+  $('list').innerHTML=shown.map(function(it){
+    var cls=it.done?'done':it.type;
+    var tag=it.done?'완료':(it.type==='lost'?'분실':'습득');
+    var no=('00'+rank[it.id]).slice(-3);
+    var photo=it.hasPhoto?'<img class="thumb" src="/photos/'+esc(it.id)+'.jpg" alt="'+esc(it.name)+' 사진" loading="lazy">':'';
+    var m=items.filter(function(o){return related(it,o)}).slice(0,3);
+    var match=m.length?'<div class="match"><span>'+(it.type==='lost'?'비슷한 습득물':'비슷한 분실물')+'</span>'+m.map(function(o){return '<button type="button" data-find="'+esc(o.name)+'">'+esc(o.name)+'</button>'}).join('')+'</div>':'';
+    var cl=it.type==='lost'?'연락':'보관 위치';
+    return '<li class="ticket '+cls+'" data-id="'+esc(it.id)+'">'
+      +'<div class="stub"><span class="tag">'+tag+'</span><span class="no">No.'+no+'</span></div>'
+      +'<div class="body"><div class="main"><h3>'+esc(it.name)+'</h3>'
+      +'<div class="meta">'+esc(it.place)+' · '+esc(it.when||'')+' · '+esc(it.cat)+'</div>'
+      +(it.desc?'<p class="desc">'+esc(it.desc)+'</p>':'')
+      +(it.contact?'<p class="contact"><b>'+cl+'</b> '+esc(it.contact)+'</p>':'')
+      +'</div>'+photo+match
+      +'<div class="acts"><button type="button" class="btn sm ghost" data-act="done">'+(it.done?'다시 찾는 중으로':'찾았어요')+'</button>'
+      +(admin?'<button type="button" class="btn sm ghost" data-act="del">'+(confirmId===it.id?'정말 삭제':'삭제')+'</button>':'')+'</div>'
+      +'</div></li>';
+  }).join('');
+}
+function find(id){return items.filter(function(i){return i.id===id})[0]}
+
+function applyType(){
+  var lost=type==='lost';
+  $('nameLbl').textContent=lost?'잃어버린 물건':'주운 물건';
+  $('whenLbl').textContent=lost?'언제쯤 잃어버렸나요':'언제 주웠나요';
+  $('contactLbl').textContent=lost?'연락받을 곳':'보관 위치';
+  $('contact').placeholder=lost?'예: 2학년 3반 김철수':'예: B.U.G 부스 안내 책상';
+}
+function shrink(file){return new Promise(function(res,rej){
+  var fr=new FileReader();
+  fr.onload=function(){var im=new Image();im.onload=function(){
+    var s=Math.min(1,480/Math.max(im.width,im.height)),c=document.createElement('canvas');
+    c.width=Math.max(1,Math.round(im.width*s));c.height=Math.max(1,Math.round(im.height*s));
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.6));};
+    im.onerror=rej;im.src=fr.result;};
+  fr.onerror=rej;fr.readAsDataURL(file);});}
+
+function init(){
+  $('cat').innerHTML=CATS.map(function(c){return '<option>'+c+'</option>'}).join('');
+  $('place').innerHTML=PLACES.map(function(c){return '<option>'+c+'</option>'}).join('');
+  $('placeF').innerHTML='<option value="">모든 장소</option>'+PLACES.map(function(c){return '<option>'+c+'</option>'}).join('');
+  $('when').value=nowHM();
+  if(window.matchMedia&&window.matchMedia('(max-width:860px)').matches)$('compose').open=false;
+  applyType();render();
+
+  document.querySelectorAll('input[name=type]').forEach(function(r){r.addEventListener('change',function(){type=r.value;applyType()})});
+  $('tabs').addEventListener('click',function(e){var b=e.target.closest('[data-view]');if(b){view=b.dataset.view;render()}});
+  $('q').addEventListener('input',function(e){q=e.target.value;render()});
+  $('placeF').addEventListener('change',function(e){placeF=e.target.value;render()});
+  $('list').addEventListener('click',function(e){
+    var f=e.target.closest('[data-find]');
+    if(f){$('q').value=f.dataset.find;q=f.dataset.find;view='all';render();return}
+    var b=e.target.closest('[data-act]');if(!b)return;
+    var li=b.closest('.ticket'),it=find(li.dataset.id);if(!it)return;
+    if(b.dataset.act==='done'){
+      api('POST','/api/items/'+it.id+'/done',{done:!it.done}).then(pull).catch(function(){toast('바꾸지 못했어요. 연결을 확인해 주세요.')});
+    }else if(confirmId===it.id){
+      confirmId=null;
+      api('DELETE','/api/items/'+it.id).then(pull).catch(function(){toast('삭제하지 못했어요.')});
+    }else{
+      confirmId=it.id;clearTimeout(confirmTimer);
+      confirmTimer=setTimeout(function(){confirmId=null;render()},3000);render();
+    }
+  });
+  $('photo').addEventListener('change',async function(e){
+    var file=e.target.files&&e.target.files[0];photoData='';$('pv').hidden=true;
+    if(!file)return;
+    try{photoData=await shrink(file);$('pv').src=photoData;$('pv').hidden=false}catch(x){$('err').textContent='사진을 불러오지 못했어요. 다른 사진을 골라 주세요.'}
+  });
+  $('f').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var name=$('name').value.trim();
+    if(!name){$('err').textContent='물건 이름을 적어 주세요.';$('name').focus();return}
+    $('err').textContent='';
+    var body={type:type,name:name,cat:$('cat').value,place:$('place').value,when:$('when').value||nowHM(),desc:$('desc').value.trim(),contact:$('contact').value.trim(),photo:photoData};
+    try{await api('POST','/api/items',body)}catch(x){$('err').textContent=(x===429?'너무 빨리 올리고 있어요. 1분쯤 뒤에 다시 눌러 주세요.':'등록하지 못했어요. 연결을 확인하고 다시 눌러 주세요.');return}
+    toast('등록했어요. 모두에게 보여요.');
+    $('f').reset();photoData='';$('pv').hidden=true;type='lost';applyType();$('when').value=nowHM();
+    view='all';q='';$('q').value='';
+    await pull();
+    if(window.matchMedia&&window.matchMedia('(max-width:860px)').matches)$('compose').open=false;
+  });
+  $('adm').addEventListener('click',function(){
+    if(admin&&getPin()){setPin('');sig='';pull();return}
+    if(admin){toast('이 컴퓨터는 이미 관리자예요.');return}
+    var p=window.prompt('관리자 비밀번호를 입력하세요');
+    if(!p)return;
+    setPin(p);sig='';
+    pull().then(function(){if(!admin){setPin('');toast('비밀번호가 맞지 않아요.')}else toast('관리자 모드예요. 삭제 버튼이 보여요.')});
+  });
+  pull();
+  setInterval(function(){if(!document.hidden)pull()},4000);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)pull()});
+}
+init();
+})();
+</script>
+</body>
+</html>
