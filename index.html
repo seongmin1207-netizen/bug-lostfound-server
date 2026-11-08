@@ -202,7 +202,9 @@ textarea{resize:vertical;min-height:72px}
 
 <script>
 (function(){
-var PLACES=['인형뽑기 부스','사주·타로 부스','풍선다트 부스','온라인 게임존','카지노존','운동장·무대','복도·교실','기타'];
+var PLACES=(function(){var a=[];for(var g=1;g<=2;g++)for(var c=1;c<=10;c++)a.push(g+'학년 '+c+'반');return a.concat(['화학실','컴퓨터실','물리지구실','도움반','영어실','기타'])})();
+function placeOpts(){function o(l){return l.map(function(c){return '<option>'+c+'</option>'}).join('')}
+  return '<optgroup label="1학년">'+o(PLACES.slice(0,10))+'</optgroup><optgroup label="2학년">'+o(PLACES.slice(10,20))+'</optgroup><optgroup label="특별실·기타">'+o(PLACES.slice(20))+'</optgroup>'}
 var CATS=['지갑·카드','휴대폰·이어폰','옷·가방','열쇠·학생증','인형·경품','기타'];
 var items=[],admin=false,mode='pending',sig='';
 var view='all',q='',placeF='',type='lost',photoData='',confirmId=null,confirmTimer=null;
@@ -300,8 +302,8 @@ function shrink(file){return new Promise(function(res,rej){
 
 function init(){
   $('cat').innerHTML=CATS.map(function(c){return '<option>'+c+'</option>'}).join('');
-  $('place').innerHTML=PLACES.map(function(c){return '<option>'+c+'</option>'}).join('');
-  $('placeF').innerHTML='<option value="">모든 장소</option>'+PLACES.map(function(c){return '<option>'+c+'</option>'}).join('');
+  $('place').innerHTML=placeOpts();
+  $('placeF').innerHTML='<option value="">모든 장소</option>'+placeOpts();
   $('when').value=nowHM();
   if(window.matchMedia&&window.matchMedia('(max-width:860px)').matches)$('compose').open=false;
   applyType();render();
